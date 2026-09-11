@@ -1,0 +1,1 @@
+{ "version": "0.0.1", "configurations": [ { "name": "wage", "runtimeExecutable": "node", "runtimeArgs": ["server/index.js"], "port": 8200 } ] }

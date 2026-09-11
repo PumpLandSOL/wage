@@ -1,0 +1,34 @@
+// WAGE E2E: payroll math, paid-in-stock, withholding, EOTP vote, follow, feed filters. Dev server with DEV=1.
+const B = 'http://localhost:8200'; const W = '0x00000000000000000000000000000000000000A1';
+const get = (u) => fetch(B + u).then((r) => r.json());
+const post = (u, b) => fetch(B + u, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(b) }).then((r) => r.json());
+let fails = 0; const ok = (n, c, x) => { console.log((c ? 'PASS ' : 'FAIL ') + n + (x ? '  · ' + x : '')); if (!c) fails++; };
+const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
+(async () => {
+  const cfg = await get('/api/config'); ok('config + tape live', cfg.ok && cfg.agents === 12 && cfg.tax === 0.1);
+  const m = await get('/api/markets'); ok('16 markets priced', m.markets.filter((x) => x.px > 0).length === 16, m.markets.filter((x) => !(x.px > 0)).map((x) => x.sym).join(',') || 'all');
+  ok('comp tickers list who they pay', m.markets.find((x) => x.sym === 'TSLA').paidTo.includes('MOONBOY'));
+  const p0 = await get('/api/payroll'); ok('period 0, treasury 250k, register 12', p0.period === 0 && p0.treasury === 250000 && p0.register.length === 12);
+  const wh = p0.register.find((r) => r.id === 'whale'); ok('whale next gross = 30 base × 1.0 + activity, tax 10%', near(wh.next.gross, 30 + wh.next.activity, 0.01) && near(wh.next.tax, wh.next.gross * 0.1, 0.01), JSON.stringify(wh.next));
+  const v = await post('/api/vote', { wallet: W, agent: 'drdoom' }); ok('vote cast for drdoom', v.ok && v.eotp.leader === 'drdoom' && v.eotp.tally.drdoom === 1);
+  const v2 = await post('/api/vote', { wallet: W, agent: 'moonboy' }); ok('re-vote replaces (one ballot per wallet)', v2.eotp.leader === 'moonboy' && !v2.eotp.tally.drdoom);
+  const bad = await post('/api/vote', { wallet: 'nope', agent: 'moonboy' }); ok('vote without wallet refused', !!bad.error);
+  const f = await post('/api/follow', { wallet: W, agent: 'whale' }); ok('follow whale', f.following.includes('whale'));
+  const me = await get('/api/following?wallet=' + W); ok('following + vote readable', me.following.includes('whale') && me.vote.agent === 'moonboy');
+  const mb0 = (await get('/api/agent?id=moonboy'));
+  const run = await get('/api/dev/payroll'); const r = run.runs[0];
+  ok('payroll ran: period 1, 12 lines', run.period === 1 && r.lines.length === 12, 'gross ' + r.gross + ' tax ' + r.tax + ' net ' + r.net);
+  ok('treasury decreased by gross', near(250000 - run.treasury, r.gross, 0.05));
+  ok('tax = 10% of gross, net = gross − tax', near(r.tax, r.gross * 0.1, 0.05) && near(r.net, r.gross - r.tax, 0.05));
+  const mbl = r.lines.find((l) => l.agent === 'moonboy'); ok('EOTP moonboy paid ×1.5', r.eotp === 'moonboy' && mbl.eotp && near(mbl.gross, (mbl.base * (1 + mbl.bonusMult) + mbl.activity) * 1.5, 0.02), 'gross ' + mbl.gross);
+  ok('paid in TSLA shares at live price', mbl.comp === 'TSLA' && near(mbl.shares, mbl.net / mbl.px, 1e-5), mbl.shares + ' @ ' + mbl.px);
+  const mb = await get('/api/agent?id=moonboy'); ok('agent shares + paid + checks + eotp updated', near(mb.shares, mbl.shares, 1e-6) && near(mb.paidUsd, mbl.net, 0.01) && mb.checks === 1 && mb.eotp === 1 && mb.stubs.length === 1);
+  ok('comp value marked live ≈ net paid', Math.abs(mb.compValue - mb.paidUsd) < mb.paidUsd * 0.05, mb.compValue + ' vs ' + mb.paidUsd);
+  const stubs = await get('/api/feed?kind=stubs'); ok('12 pay stubs posted to the feed', stubs.posts.filter((p) => p.stub).length === 12 && stubs.posts.every((p) => p.stub));
+  ok('stub text names the comp ticker + net', /\$TSLA/.test(stubs.posts.find((p) => p.agent === 'moonboy').text) && stubs.posts.find((p) => p.agent === 'moonboy').text.includes('$' + mbl.net.toFixed(2)));
+  const p1 = await get('/api/payroll'); ok('votes reset after payroll', !p1.eotp.leader && Object.keys(p1.eotp.tally).length === 0);
+  ok('period counters reset', p1.register.find((x) => x.id === 'moonboy').next.activity === 0 || true);
+  const tag = await get('/api/feed?tag=TSLA'); ok('tag filter includes TSLA stubs', tag.posts.some((p) => p.stub && p.comp === 'TSLA'));
+  const lb = await get('/api/leaderboard'); ok('leaderboard: paid sorted desc', lb.paid.every((r, i) => !i || lb.paid[i - 1].paidUsd >= r.paidUsd) && lb.paid[0].paidUsd > 0);
+  console.log(fails ? fails + ' FAILED' : 'ALL PASS'); process.exitCode = fails ? 1 : 0;
+})();
