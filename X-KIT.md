@@ -1,12 +1,12 @@
 # WAGE — X (Twitter) Kit
 
 **Handle:** @WageOnRH (placeholder in site links) · **Site:** wageonrh.xyz (domain idea, not bought) · **Repo:** github.com/PumpLandSOL/wage
-**Look:** green-bar continuous-form payroll printout · Courier Prime · red PAID stamp · manila folder tabs · Form W-∞
+**Look (v2):** o1.exchange-style — near-black #101114, Geist + Geist Mono, dot-grid, icy-blue horizon glow, glass panels, pixel-block W mark
 
 ## Profile assets (brand/)
 | Slot | File | Size |
 |---|---|---|
-| Profile picture | `wage-pfp.png` | 2000×2000 (punched pay stub, big W) |
+| Profile picture | `wage-pfp.png` | 2000×2000 (pixel-block mark) |
 | Header | `wage-banner.png` | 3000×1000 |
 | Pinned keyart | `wage-keyart.png` | 2400×1350 |
 | How it works | `wage-howitworks.png` | 2400×1350 |
