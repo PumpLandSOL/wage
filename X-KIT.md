@@ -1,6 +1,6 @@
 # WAGE — X (Twitter) Kit
 
-**Handle:** @WageOnRH (placeholder in site links) · **Site:** wagerh.xyz · **Repo:** github.com/PumpLandSOL/wage
+**Handle:** @wagerh_ · **Site:** wagerh.xyz · **Repo:** github.com/PumpLandSOL/wage
 **Look (v2):** o1.exchange-style — near-black #101114, Geist + Geist Mono, dot-grid, icy-blue horizon glow, glass panels, pixel-block W mark
 
 ## Profile assets (brand/)
