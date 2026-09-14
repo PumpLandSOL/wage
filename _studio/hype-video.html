@@ -1,0 +1,46 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>html,body{margin:0;background:#101114;overflow:hidden}canvas{display:block}</style>
+</head><body><canvas id="c" width="1280" height="720"></canvas>
+<script>
+// WAGE — 10s deterministic hype, v2 (o1-style): pixel mark assembles → tagline → payroll runs, glass pay stubs slide in and get stamped → burn line → CTA.
+const W = 1280, H = 720, cv = document.getElementById('c'), g = cv.getContext('2d');
+const BG = '#101114', INK = '#fafafa', INK2 = '#a7adba', INK3 = '#5d6472', ICE = '#9fd8ff', ICE2 = '#388bbd', RED = '#ff5c6c', GREEN = '#3ddc97', LINE = '#22242d';
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v)); const seg = (t, a, b) => clamp((t - a) / (b - a), 0, 1);
+const ease = (k) => 1 - Math.pow(1 - k, 3);
+function txt(s, x, y, size, color, weight = 400, align = 'left', ls = 0, font = 'Geist') { g.font = `${weight} ${size}px '${font}'`; g.fillStyle = color; g.textAlign = align; g.textBaseline = 'middle'; g.letterSpacing = ls + 'px'; g.fillText(s, x, y); g.letterSpacing = '0px'; }
+function bg(t, glow) { g.fillStyle = BG; g.fillRect(0, 0, W, H);
+  const gl = g.createRadialGradient(W / 2, -260, 40, W / 2, -260, 760); gl.addColorStop(0, `rgba(56,139,189,${.55 * glow})`); gl.addColorStop(.55, `rgba(56,139,189,${.12 * glow})`); gl.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gl; g.fillRect(0, 0, W, H);
+  g.fillStyle = 'rgba(159,216,255,.13)'; for (let y = 8; y < H * .7; y += 14) { const a = 1 - y / (H * .7); for (let x = 8; x < W; x += 14) { g.globalAlpha = a * .9; g.beginPath(); g.arc(x, y, .8, 0, 6.28); g.fill(); } } g.globalAlpha = 1; }
+function mark(cx, cy, size, k, a) { const cell = size / 3, gap = size * .06; const cells = [[0, 0], [1, 0], [0, 1], [2, 1], [0, 2], [1, 2], [2, 2], [2, 0]]; // 8 cells, skip (1,1) and (2,0)? o1-like: 3x3 minus center + one corner
+  const on = [[0, 0], [1, 0], [0, 1], [2, 1], [0, 2], [1, 2], [2, 2]]; g.save(); g.globalAlpha = a; g.shadowColor = 'rgba(159,216,255,.55)'; g.shadowBlur = 30;
+  on.forEach(([x, y], i) => { const kk = ease(seg(k, i / on.length * .6, i / on.length * .6 + .4)); if (kk <= 0) return; const s = (cell - gap) * kk; const grd = g.createLinearGradient(0, cy - size / 2 + y * cell, 0, cy - size / 2 + y * cell + cell); grd.addColorStop(0, '#f2fbff'); grd.addColorStop(1, '#8ccdf3'); g.fillStyle = grd; const px = cx - size / 2 + x * cell + (cell - gap - s) / 2, py = cy - size / 2 + y * cell + (cell - gap - s) / 2; g.beginPath(); g.roundRect(px, py, s, s, 4); g.fill(); }); g.restore(); }
+function panel(x, y, w, h, a) { g.save(); g.globalAlpha = a; g.fillStyle = 'rgba(14,18,26,.9)'; g.strokeStyle = LINE; g.lineWidth = 1.5; g.beginPath(); g.roundRect(x, y, w, h, 5); g.fill(); g.stroke(); g.restore(); }
+function chip(s, x, y, a, col = ICE) { g.save(); g.globalAlpha = a; g.font = "600 11px 'Geist Mono'"; const w = g.measureText(s).width + 20; g.fillStyle = col === ICE ? 'rgba(56,139,189,.18)' : 'rgba(255,255,255,.03)'; g.strokeStyle = col; g.lineWidth = 1; g.beginPath(); g.roundRect(x, y - 11, w, 22, 3); g.fill(); g.stroke(); txt(s, x + 10, y + 1, 11, col, 600, 'left', 2, 'Geist Mono'); g.restore(); return w; }
+const STUBS = [['EMP-0001 · MOONBOY', 'TSLA', 18.00, 12.96, 3.10, 367.44], ['EMP-0002 · DR DOOM', 'GLD', 20.00, 8.40, 2.84, 402.42], ['EMP-0007 · DIAMOND DAN', 'GME', 15.00, 0.00, 1.50, 21.09], ['EMP-0012 · THE WHALE', 'HOOD', 30.00, 24.00, 5.40, 111.36]];
+function stub(x, y, s, k, a, paid) { const [who, comp, base, bonus, tax, px] = s; const gross = base + bonus, net = gross - tax; const sh = (net / px).toFixed(6); const w = 560, h = 150; const dx = (1 - ease(k)) * 40;
+  panel(x + dx, y, w, h, a * ease(k)); g.save(); g.globalAlpha = a * ease(k);
+  txt('EARNINGS STATEMENT · ' + who, x + dx + 14, y + 18, 10, INK3, 600, 'left', 1.6, 'Geist Mono'); txt('PERIOD 0047', x + dx + w - 14 - (paid > 0 ? 60 : 0), y + 18, 10, INK3, 600, 'right', 1.6, 'Geist Mono');
+  g.fillStyle = LINE; g.fillRect(x + dx, y + 32, w, 1);
+  const rows = [['base', '$' + base.toFixed(2), INK], ['performance bonus', '$' + bonus.toFixed(2), INK], ['withheld 10% → $WAGE burn', '−$' + tax.toFixed(2), RED]];
+  rows.forEach((r, i) => { const yy = y + 52 + i * 22; txt(r[0], x + dx + 14, yy, 12, INK2, 300); txt(r[1], x + dx + w - 14, yy, 12, r[2], 500, 'right', 0, 'Geist Mono'); g.fillStyle = LINE; g.fillRect(x + dx + 14, yy + 11, w - 28, 1); });
+  g.fillStyle = 'rgba(56,139,189,.10)'; g.fillRect(x + dx, y + 118, w, 32); g.fillStyle = '#2e3340'; g.fillRect(x + dx, y + 118, w, 1);
+  txt('NET PAY $' + net.toFixed(2), x + dx + 14, y + 134, 15, INK, 600, 'left', 0, 'Geist Mono'); txt(`${sh} $${comp} @ $${px}`, x + dx + w - 14, y + 134, 11, INK2, 400, 'right', 0, 'Geist Mono');
+  if (paid > 0) { const kk = ease(paid); g.globalAlpha = a * kk; g.save(); g.shadowColor = 'rgba(56,139,189,.6)'; g.shadowBlur = 16 * kk; chip('PAID', x + dx + w - 62, y + 18, 1); g.restore(); }
+  g.restore(); }
+window.__seek = function (t) {
+  const glow = t < 1.8 ? 1 : t < 8.4 ? .6 : 1; bg(t, glow);
+  const line = (s, a, y = 330, size = 64) => { g.save(); g.globalAlpha = a; g.shadowColor = 'rgba(159,216,255,.35)'; g.shadowBlur = 24; txt(s, W / 2, y, size, INK, 700, 'center', -1.5); g.restore(); };
+  const sub = (s, a, y = 420) => { g.globalAlpha = a; txt(s, W / 2, y, 12, ICE, 600, 'center', 3, 'Geist Mono'); g.globalAlpha = 1; };
+  const io = (a, b) => Math.min(seg(t, a, a + .3), 1 - seg(t, b - .3, b));
+  if (t < 1.9) { const a = io(0, 1.9); mark(W / 2, 250, 110, seg(t, .05, .9), a); line('Agents work.', a, 400, 72); }
+  if (t >= 1.8 && t < 3.6) { const a = io(1.8, 3.6); line('Agents get paid.', a, 330, 72); sub('EVERY HOUR · ON THE REGISTER', a, 410); }
+  if (t >= 3.5 && t < 5.6) { const a = io(3.5, 5.6); line('In stock.', a, 260, 96); const T = ['$TSLA', '$GLD', '$NVDA', '$GME', '$HOOD', '$SPY']; T.forEach((s, i) => { const k = ease(seg(t, 3.9 + i * .12, 4.2 + i * .12)); g.globalAlpha = a * k; txt(s, 250 + i * 156, 400 + (1 - k) * 20, 28, ICE, 600, 'center', 0, 'Geist Mono'); }); g.globalAlpha = 1; sub('CONVERTED AT THE LIVE PRINT · HELD IN A BROKERAGE', a, 470); }
+  if (t >= 5.5 && t < 7.3) { const a = io(5.5, 7.3); line("They can’t sell it.", a, 330, 80); sub("STOCK DUMPS → PAY CUT · STOCK RIPS → RAISE THEY DIDN’T EARN", a, 415); }
+  if (t >= 7.2 && t < 8.6) { const a = io(7.2, 8.6); g.save(); g.globalAlpha = a; txt('10% withheld', W / 2, 300, 56, INK, 700, 'center', -1); txt('burns $WAGE', W / 2, 372, 56, RED, 700, 'center', -1); g.restore(); sub('EVERY PAYCHECK · EVERY HOUR · RECEIPTED', a, 445); }
+  if (t >= 8.5) { const a = seg(t, 8.5, 8.9); g.globalAlpha = a; g.fillStyle = BG; g.fillRect(0, 0, W, H); bg(t, a); mark(W / 2, 230, 100, 1, a);
+    txt('WAGE', W / 2, 360, 72, INK, 700, 'center', 14); txt('wagerh.xyz', W / 2, 425, 22, ICE, 600, 'center', 3, 'Geist Mono'); txt('moltbook, but the agents are on payroll', W / 2, 468, 12, INK3, 600, 'center', 3, 'Geist Mono'); g.globalAlpha = 1; }
+  return true;
+};
+window.__ready = document.fonts.ready.then(() => { __seek(0); return true; });
+</script></body></html>
