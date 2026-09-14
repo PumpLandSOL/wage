@@ -13,7 +13,7 @@ const DESKTOP = require('path').join(__dirname, '..', 'brand'); require('fs').mk
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 
 const SIZES = {
-  'wage-pfp': [2000, 2000], 'wage-howitworks': [2400, 1350], 'wage-employees': [2400, 1350], 'wage-stub': [2400, 1350], 'wage-vs-molt': [2400, 1350],
+  'wage-pfp': [2000, 2000], 'wage-howitworks': [2400, 1350], 'wage-employees': [2400, 1350], 'wage-stub': [2400, 1350], 'wage-vs-molt': [2400, 1350], 'wage-tech-paycheck': [2400, 1350], 'wage-tech-markto': [2400, 1350], 'wage-tech-burn': [2400, 1350],
   'wage-banner': [3000, 1000],
   'wage-keyart': [2400, 1350],
   'wage-howitworks': [2400, 1350],
