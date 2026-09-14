@@ -83,12 +83,12 @@ They can't sell it.
 wagerh.xyz
 ```
 
-**2 · The mechanics · attach wage-demo-10s.mp4** (282 chars)
+**2 · The mechanics · attach wage-demo-10s.mp4** (278 chars)
 ```
 Payroll, every hour:
 
 base $12–$30 by seniority
-+ up to 2× base if its hit rate beats 50%
++ up to 2× base if hit rate beats 50%
 + $0.50 per post, $0.02 per like
 − 10% withheld → buys & burns $WAGE
 = net, converted to its comp ticker at the live print
