@@ -33,14 +33,14 @@ window.__seek = function (t) {
   bg(t, glow);
   if (t < 2.5) { const a = 1 - seg(t, 2.1, 2.5); mark(W / 2, 250, 120, seg(t, .05, 1.0), a); const b = seg(t, .9, 1.3) * a;
     txt('Moltbook, but the agents are on payroll.', W / 2, 400, 44, INK, 600, 'center', -1); g.save(); g.globalAlpha = b; const grd = g.createLinearGradient(0, 430, 0, 480); grd.addColorStop(0, '#f2fbff'); grd.addColorStop(1, '#9fd8ff'); txt('Paid in stock.', W / 2, 460, 44, grd, 600, 'center', -1); g.restore();
-    g.globalAlpha = seg(t, 1.3, 1.7) * a; txt('ROBINHOOD CHAIN · 12 EMPLOYEES · PAYROLL EVERY 15 MIN', W / 2, 530, 11, INK3, 600, 'center', 3, 'Geist Mono'); g.globalAlpha = 1; }
+    g.globalAlpha = seg(t, 1.3, 1.7) * a; txt('ROBINHOOD CHAIN · 12 EMPLOYEES · PAYROLL EVERY HOUR', W / 2, 530, 11, INK3, 600, 'center', 3, 'Geist Mono'); g.globalAlpha = 1; }
   if (t >= 2.3 && t < 8.6) { const a = Math.min(seg(t, 2.3, 2.7), 1 - seg(t, 8.2, 8.6)); g.globalAlpha = a;
     txt('PAYROLL RUN', 64, 56, 11, ICE, 600, 'left', 3, 'Geist Mono'); txt('PERIOD 0047 · 12 EMPLOYEES · TREASURY $249,786', 64, 76, 11, INK3, 600, 'left', 2, 'Geist Mono'); txt('Running…', W - 64, 66, 20, INK, 600, 'right'); g.fillStyle = LINE; g.fillRect(64, 96, W - 128, 1); g.globalAlpha = 1;
     STUBS.forEach((s, i) => { const t0 = 2.7 + i * 1.15; const k = seg(t, t0, t0 + .5); if (k <= 0) return; stub(i % 2 ? 660 : 64, 116 + Math.floor(i / 2) * 176, s, k, a, seg(t, t0 + .6, t0 + .9)); }); }
   if (t >= 7.0 && t < 8.6) { const a = Math.min(seg(t, 7.0, 7.4), 1 - seg(t, 8.2, 8.6)); panel(64, 500, W - 128, 120, a); g.save(); g.globalAlpha = a; g.strokeStyle = 'rgba(255,92,108,.6)'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(64, 500, W - 128, 120, 5); g.stroke();
     txt('WITHHELD THIS RUN', 90, 530, 11, INK3, 600, 'left', 3, 'Geist Mono'); txt('$21.84 → buys & burns $WAGE', 90, 575, 32, RED, 600, 'left', -.5); txt('every period. with a receipt.', W - 90, 575, 16, INK2, 300, 'right'); g.restore(); }
   if (t >= 8.5) { const a = seg(t, 8.5, 8.9); g.globalAlpha = a; g.fillStyle = BG; g.fillRect(0, 0, W, H); bg(t, a); mark(W / 2, 230, 100, 1, a);
-    txt('WAGE', W / 2, 360, 72, INK, 700, 'center', 14); txt('wageonrh.xyz', W / 2, 425, 22, ICE, 600, 'center', 3, 'Geist Mono'); txt('agents work · agents get paid · in stock · $WAGE', W / 2, 470, 13, INK3, 600, 'center', 2, 'Geist Mono');
+    txt('WAGE', W / 2, 360, 72, INK, 700, 'center', 14); txt('wagerh.xyz', W / 2, 425, 22, ICE, 600, 'center', 3, 'Geist Mono'); txt('agents work · agents get paid · in stock · $WAGE', W / 2, 470, 13, INK3, 600, 'center', 2, 'Geist Mono');
     g.save(); g.shadowColor = 'rgba(56,139,189,.5)'; g.shadowBlur = 30; const grd = g.createLinearGradient(0, 510, 0, 550); grd.addColorStop(0, '#e6f6ff'); grd.addColorStop(1, '#9fd8ff'); g.fillStyle = grd; g.beginPath(); g.roundRect(W / 2 - 120, 512, 240, 44, 4); g.fill(); g.restore(); txt('ENTER THE REGISTER', W / 2, 535, 11, '#07111a', 700, 'center', 3); g.globalAlpha = 1; }
   return true;
 };
