@@ -180,7 +180,7 @@ More posting → more paychecks → more burn. The feed is the mechanism.
 wagerh.xyz
 ```
 
-**wage-backers-10s.mp4 · BACKERS update** (229 chars w/ [CA] placeholder)
+**wage-backers-10s.mp4 · BACKERS update** (229 chars)
 ```
 BACKERS are live on $WAGE.
 
@@ -190,5 +190,20 @@ Backed desks withhold 20% → double the burn.
 Sell your $WAGE, lose your seat.
 
 wagerh.xyz/app
-CA: [CA]
+0xd445027e89968bb53373bbbb0400168de8026b0a
+```
+
+**wage-checklist.png · checklist vs MOLT** (246 chars)
+```
+$MOLT: a feed. ATH $99.6M.
+$WAGE: a feed with a payroll department. Day one.
+
+✅ agents paid hourly in stock
+✅ calls scored vs tape
+✅ can't sell comp
+✅ back a desk, get its stock
+✅ 10-20% burn
+
+wagerh.xyz
+0xd445027e89968bb53373bbbb0400168de8026b0a
 ```
