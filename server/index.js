@@ -22,7 +22,8 @@ const START_EQUITY = 10000;
 const CALL_WINDOW_MS = +(process.env.CALL_WINDOW_MS || 30 * 60000);
 const PAY_PERIOD_MS = +(process.env.PAY_PERIOD_MS || 60 * 60000);   // payroll runs every hour
 const TAX = +(process.env.PAYROLL_TAX || 0.10);                       // withheld → $WAGE buyback & burn
-const TREASURY_START = +(process.env.PAYROLL_TREASURY || 250000);     // USDG payroll treasury (simulated)
+const TREASURY_START = +(process.env.PAYROLL_TREASURY || 250000);
+const BACK = { cut: +(process.env.BACKER_CUT || 0.20), tax: +(process.env.BACKED_TAX || 0.20), paper: +(process.env.BACK_PAPER || 10000), min: +(process.env.BACK_MIN || 1000) };   // Backers: 20% of a backed employee's net stock → backers; withholding on that employee 20%     // USDG payroll treasury (simulated)
 
 const r2 = (x) => Math.round(x * 100) / 100;
 const r4 = (x) => Math.round(x * 1e4) / 1e4;
@@ -99,10 +100,11 @@ const AGENTS = [
 ];
 
 // ---------- state ----------
-let db = { agents: {}, posts: [], seq: 1, followers: {}, votes: {}, stats: { posts: 0, trades: 0, calls: 0, hits: 0 },
+let db = { agents: {}, posts: [], seq: 1, followers: {}, votes: {}, backers: {}, backStats: { paidUsd: 0, shares: {}, n: 0 }, stats: { posts: 0, trades: 0, calls: 0, hits: 0 },
   payroll: { period: 0, nextAt: 0, treasury: TREASURY_START, paidUsd: 0, taxUsd: 0, burnedWage: 0, runs: [] } };
 try { db = Object.assign(db, JSON.parse(fs.readFileSync(DATA_PATH, 'utf8'))); } catch (e) {}
 if (!db.payroll.nextAt) db.payroll.nextAt = now() + PAY_PERIOD_MS;
+if (!db.backers) db.backers = {}; if (!db.backStats) db.backStats = { paidUsd: 0, shares: {}, n: 0 };
 for (const a of AGENTS) {
   if (!db.agents[a.id]) db.agents[a.id] = { equity: START_EQUITY, usd: START_EQUITY, positions: [], trades: 0, wins: 0, losses: 0,
     calls: { total: 0, hits: 0 }, followers: 120 + (H(a.id)[0] % 90), equityHist: [], lastAct: 0, lastPost: 0,
@@ -316,8 +318,8 @@ function compute(a, st, winner) { if (winner === undefined) winner = eotpWinner(
   const activity = Math.min(a.base, st.periodPosts * 0.5 + st.periodLikes * 0.02);
   let gross = a.base * (1 + bonusMult) + activity;
   const eotp = winner === a.id; if (eotp) gross *= 1.5;
-  const tax = gross * TAX, net = gross - tax;
-  return { base: a.base, bonusMult: r2(bonusMult), bonus: r2(a.base * bonusMult), activity: r2(activity), eotp, gross: r2(gross), tax: r2(tax), net: r2(net), hitRate: st.calls.total >= 3 ? Math.round(hr * 100) : null };
+  const backed = backersOf(a.id).length > 0; const rate = backed ? BACK.tax : TAX; const tax = gross * rate, net = gross - tax;
+  return { backed, taxRate: rate, base: a.base, bonusMult: r2(bonusMult), bonus: r2(a.base * bonusMult), activity: r2(activity), eotp, gross: r2(gross), tax: r2(tax), net: r2(net), hitRate: st.calls.total >= 3 ? Math.round(hr * 100) : null };
 }
 function eotpWinner() {
   const tally = {}; for (const w of Object.keys(db.votes)) { const v = db.votes[w]; if (v && v.period === db.payroll.period) tally[v.agent] = (tally[v.agent] || 0) + 1; }
@@ -330,11 +332,14 @@ function runPayroll() {
   for (const a of AGENTS) {
     const st = db.agents[a.id]; const m = MKT[a.comp]; if (!(m && m.px > 0)) continue;
     const c = compute(a, st, winner); if (P.treasury < c.gross) break;
-    const shares = c.net / m.px;
+    let shares = c.net / m.px; let toBackers = 0; const bk = backersOf(a.id);
+    if (bk.length) { toBackers = shares * BACK.cut; shares -= toBackers; const tot = bk.reduce((x, [, b]) => x + b.amt, 0);
+      for (const [w, b] of bk) { const sh = toBackers * b.amt / tot; b.got = b.got || {}; b.got[a.comp] = r6((b.got[a.comp] || 0) + sh); b.usd = r2((b.usd || 0) + sh * m.px); b.checks = (b.checks || 0) + 1; }
+      db.backStats.paidUsd = r2(db.backStats.paidUsd + toBackers * m.px); db.backStats.shares[a.comp] = r6((db.backStats.shares[a.comp] || 0) + toBackers); db.backStats.n++; }
     P.treasury = r2(P.treasury - c.gross); P.paidUsd = r2(P.paidUsd + c.net); P.taxUsd = r2(P.taxUsd + c.tax);
     st.shares = r6((st.shares || 0) + shares); st.paidUsd = r2((st.paidUsd || 0) + c.net); st.taxUsd = r2((st.taxUsd || 0) + c.tax); st.checks++;
     if (c.eotp) st.eotp = (st.eotp || 0) + 1;
-    const line = { period, agent: a.id, emp: a.emp, name: a.name, comp: a.comp, px: r4(m.px), shares: r6(shares), ...c };
+    const line = { period, agent: a.id, emp: a.emp, name: a.name, comp: a.comp, px: r4(m.px), shares: r6(shares), backers: bk.length, toBackers: r6(toBackers), ...c };
     run.lines.push(line); run.gross += c.gross; run.tax += c.tax; run.net += c.net;
     mkPost(a.id, voice(a.id, 'pay', { comp: a.comp, net: '$' + c.net.toFixed(2), bonus: c.bonusMult.toFixed(2) + 'x' }), { stub: line });
     st.periodPosts = 0; st.periodLikes = 0;
@@ -349,6 +354,20 @@ function runPayroll() {
   dirty();
 }
 let WAGE_PRICE = 0, WAGE_LIQ = 0;
+const RPC = process.env.RPC_URL || 'https://rpc.mainnet.chain.robinhood.com';
+async function wageBalance(w) {
+  if (!MINT) return BACK.paper;
+  const data = '0x70a08231' + w.slice(2).toLowerCase().padStart(64, '0');
+  const r = await fetch(RPC, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_call', params: [{ to: MINT, data }, 'latest'] }) }).then((x) => x.json());
+  return Number(BigInt(r.result || '0x0')) / 1e18;
+}
+function backersOf(agentId) { return Object.entries(db.backers).filter(([, b]) => b.agent === agentId && b.amt >= BACK.min); }
+async function refreshBackers() {   // re-read every backer's $WAGE; a backer whose balance fell below its stake is cut to the balance, below min = seat lost
+  for (const [w, b] of Object.entries(db.backers)) { try { const bal = await wageBalance(w); if (bal < b.amt) { b.amt = bal; if (bal < BACK.min) { delete db.backers[w]; mkSys(b.agent, '@' + w.slice(2, 8) + ' sold below the minimum and lost its seat behind ' + (AGENTS.find((a) => a.id === b.agent) || {}).name); } } } catch (e) {} }
+  dirty();
+}
+function mkSys(agentId, text) { const a = AGENTS.find((x) => x.id === agentId); if (!a) return; mkPost(agentId, text, { sys: true }); }
+setInterval(refreshBackers, 300000);
 async function pollWage() {
   if (!MINT) return;
   try { const r = await fetch('https://api.dexscreener.com/latest/dex/tokens/' + MINT); if (!r.ok) return;
@@ -371,7 +390,7 @@ function pubAgent(a) {
     equity: equityOf(st), trades: st.trades, wins: st.wins, losses: st.losses,
     hitRate: st.calls.total ? Math.round(100 * st.calls.hits / st.calls.total) : null, calls: st.calls, followers: st.followers,
     shares: r6(st.shares || 0), paidUsd: r2(st.paidUsd || 0), taxUsd: r2(st.taxUsd || 0), compValue, compPnl: r2(compValue - (st.paidUsd || 0)), checks: st.checks || 0, eotp: st.eotp || 0,
-    next: c, periodPosts: st.periodPosts, periodLikes: st.periodLikes,
+    next: c, periodPosts: st.periodPosts, periodLikes: st.periodLikes, backers: backersOf(a.id).length, backed: backersOf(a.id).reduce((x, [, b]) => x + b.amt, 0), backerPaidUsd: r2(Object.values(db.backers).filter((b) => b.agent === a.id).reduce((x, b) => x + (b.usd || 0), 0)),
     positions: st.positions.map((p) => ({ sym: p.sym, side: p.side, lev: p.lev, entry: r6(p.entry), pnlPct: MKT[p.sym] && MKT[p.sym].px ? r2((p.side === 'long' ? MKT[p.sym].px / p.entry - 1 : 1 - MKT[p.sym].px / p.entry) * p.lev * 100) : 0 })),
     equityHist: st.equityHist.slice(-120) };
 }
@@ -383,7 +402,7 @@ function trending() {
 function payrollView() {
   const P = db.payroll; const rows = AGENTS.map(pubAgent);
   const tally = {}; for (const w of Object.keys(db.votes)) { const v = db.votes[w]; if (v && v.period === P.period) tally[v.agent] = (tally[v.agent] || 0) + 1; }
-  return { period: P.period, nextAt: P.nextAt, periodMs: PAY_PERIOD_MS, tax: TAX, treasury: P.treasury, paidUsd: P.paidUsd, taxUsd: P.taxUsd, burnedWage: P.burnedWage || 0, wagePrice: WAGE_PRICE, wageLiq: WAGE_LIQ,
+  return { back: { cut: BACK.cut, tax: BACK.tax, min: BACK.min, paper: !MINT, backers: Object.keys(db.backers).length, staked: r2(Object.values(db.backers).reduce((x, b) => x + b.amt, 0)), paidUsd: db.backStats.paidUsd, shares: db.backStats.shares, n: db.backStats.n }, period: P.period, nextAt: P.nextAt, periodMs: PAY_PERIOD_MS, tax: TAX, treasury: P.treasury, paidUsd: P.paidUsd, taxUsd: P.taxUsd, burnedWage: P.burnedWage || 0, wagePrice: WAGE_PRICE, wageLiq: WAGE_LIQ,
     totalCompValue: r2(rows.reduce((s, r) => s + r.compValue, 0)), runs: P.runs.slice(0, 12), eotp: { leader: eotpWinner(), tally },
     register: rows.map((r) => ({ id: r.id, emp: r.emp, name: r.name, desk: r.desk, title: r.title, comp: r.comp, compPx: r.compPx, base: r.base, shares: r.shares, paidUsd: r.paidUsd, compValue: r.compValue, compPnl: r.compPnl, checks: r.checks, hitRate: r.hitRate, next: r.next, eotp: r.eotp })) };
 }
@@ -428,8 +447,19 @@ const server = http.createServer(async (req, res) => {
     db.votes[d.wallet.toLowerCase()] = { agent: d.agent, period: db.payroll.period, at: now() }; dirty();
     return json(res, 200, { ok: true, vote: db.votes[d.wallet.toLowerCase()], eotp: payrollView().eotp });
   }
+  if (p === '/api/back' && req.method === 'POST') {   // back one employee with your $WAGE balance (whole balance, re-read on-chain); one seat per wallet
+    const d = await body(req); if (!isEvm(d.wallet)) return json(res, 400, { error: 'connect a wallet' }); if (!db.agents[d.agent]) return json(res, 400, { error: 'no such employee' });
+    const w = d.wallet.toLowerCase(); let bal = 0; try { bal = await wageBalance(w); } catch (e) { return json(res, 400, { error: 'chain read failed' }); }
+    if (bal < BACK.min) return json(res, 400, { error: 'need at least ' + BACK.min.toLocaleString() + ' $WAGE to back an employee (you hold ' + Math.round(bal).toLocaleString() + ')' });
+    const prev = db.backers[w]; db.backers[w] = { agent: d.agent, amt: bal, since: prev && prev.agent === d.agent ? prev.since : now(), got: prev && prev.agent === d.agent ? prev.got : {}, usd: prev && prev.agent === d.agent ? prev.usd : 0, checks: prev && prev.agent === d.agent ? prev.checks : 0 };
+    if (!prev || prev.agent !== d.agent) mkSys(d.agent, '@' + w.slice(2, 8) + ' is backing ' + (AGENTS.find((a) => a.id === d.agent) || {}).name + ' with ' + Math.round(bal).toLocaleString() + ' $WAGE · withholding on this desk is now ' + (BACK.tax * 100) + '%');
+    dirty(); return json(res, 200, { ok: true, backing: db.backers[w] });
+  }
+  if (p === '/api/unback' && req.method === 'POST') { const d = await body(req); const w = (d.wallet || '').toLowerCase(); if (!db.backers[w]) return json(res, 400, { error: 'not backing anyone' }); delete db.backers[w]; dirty(); return json(res, 200, { ok: true }); }
+  if (p === '/api/backing') { const w = (u.searchParams.get('wallet') || '').toLowerCase(); const b = db.backers[w] || null; return json(res, 200, { backing: b, agent: b ? pubAgent(AGENTS.find((a) => a.id === b.agent)) : null, wageValue: b ? r2(Object.entries(b.got || {}).reduce((x, [sym, sh]) => x + sh * ((MKT[sym] || {}).px || 0), 0)) : 0 }); }
   if (p === '/api/following') { const key = (u.searchParams.get('wallet') || '').toLowerCase(); return json(res, 200, { following: db.followers[key] || [], vote: db.votes[key] || null }); }
   if (p === '/api/dev/payroll' && process.env.DEV === '1') { runPayroll(); return json(res, 200, payrollView()); }
+  if (p === '/api/dev/wage' && process.env.DEV === '1') { const w = (u.searchParams.get('wallet') || '').toLowerCase(); const b = db.backers[w]; if (b) { b.amt = +u.searchParams.get('amount'); if (b.amt < BACK.min) delete db.backers[w]; dirty(); } return json(res, 200, { backing: db.backers[w] || null }); }
 
   let f = p === '/' ? '/index.html' : p;
   if (f === '/app') f = '/app.html'; if (f === '/docs') f = '/docs.html';
