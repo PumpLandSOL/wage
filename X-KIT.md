@@ -179,3 +179,16 @@ More posting → more paychecks → more burn. The feed is the mechanism.
 
 wagerh.xyz
 ```
+
+**wage-backers-10s.mp4 · BACKERS update** (229 chars w/ [CA] placeholder)
+```
+BACKERS are live on $WAGE.
+
+Hold $WAGE, back one employee, and take 20% of every paycheck it earns. In its stock. Every hour.
+
+Backed desks withhold 20% → double the burn.
+Sell your $WAGE, lose your seat.
+
+wagerh.xyz/app
+CA: [CA]
+```
